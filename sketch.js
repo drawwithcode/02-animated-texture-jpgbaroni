@@ -1,11 +1,13 @@
 let wDim0 = [0,0]; // Window dimension at starting time
 let tiles = []; // Array of Tiles
 let numTiles = 10; // Number of Tiles
-let fps = 20; // Frames per Second
-let tileSize = [60,60]; // Width and Height
-let tileGap = 12;
-let transitionSpeed = 0.7;
-let focusEnlarge = tileGap*2;
+let fps = 12; // Frames per Second
+let tileSize = [60,82]; // Width and Height
+let tileGap = 16;
+let transitionSpeed = 0.9;
+let focusEnlarge = 24;
+let backEl = [];
+let nbackEl = 20;
 
 function preload(){
   // put preload code here
@@ -16,21 +18,24 @@ function setup() {
   wDim0 = [windowWidth,windowHeight];
   createCanvas(wDim0[0],wDim0[1]);
 
-  for (var x = (wDim0[0] % (tileSize[0]+tileSize[0]))/2 - tileGap/2; x+tileSize[0] < wDim0[0]; x += tileGap+tileSize[0]) {
-    for (var y = (wDim0[1] % (tileSize[1]+tileSize[1]))/2 - tileGap/2; y+tileSize[1] < wDim0[1]; y += tileGap+tileSize[1]) {
-      tiles.push(new Tile(x,y));
+  for (var xrel = (tileGap+tileSize[0])/2; xrel < (wDim0[0]*0.5)-tileSize[0]; xrel += tileGap+tileSize[0]) {
+    for (var yrel = (tileGap+tileSize[1])/2; yrel < (wDim0[1]*0.5)-tileSize[1]*0.6; yrel += tileGap+tileSize[1]) {
+      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2+yrel));
+      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2-yrel));
+      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2+yrel));
+      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2-yrel));
     }
   }
 }
 
 function draw() {
   // put drawing code here
-  background(0, 130, 10);
+  background(0, 80, 5);
 
-  drawingContext.shadowOffsetX = 0;
-  drawingContext.shadowOffsetY = 0;
-  drawingContext.shadowBlur = 8;
-  drawingContext.shadowColor = 'black';
+  //drawingContext.shadowOffsetX = 0;
+  //drawingContext.shadowOffsetY = 0;
+  //drawingContext.shadowBlur = 8;
+  //drawingContext.shadowColor = 'black';
 
   tiles.forEach((tile) => {
     tile.move();
@@ -47,40 +52,67 @@ function sign(number) {
 class Tile {
   constructor(x,y) {
     this.pos = [x,y];
+    this.startpos = [x,y];
     this.col = color(250);
     this.size = tileSize;
-    this.startpos = [x+tileSize[0],y+tileSize[1]];
+    this.noisenow = 0;
+    this.vert = this.noiseToPos(0);
+  }
+
+  mouseHover() {
+    if (mouseX > (this.pos[0]-this.size[0]/2) && mouseX < (this.pos[0]+this.size[0]/2) &&
+        mouseY > (this.pos[1]-this.size[1]/2) && mouseY < (this.pos[1]+this.size[1]/2))
+        return true;
+    return false;
+  }
+
+  noiseToPos(startingNoise,normalized = true) {
+    let perimeter = 1;
+    if (normalized)
+      perimeter = (this.size[0]+this.size[1]) * 2;
+    let noiseScaled = ((startingNoise) * perimeter) % ((this.size[0]+this.size[1]) * 2);
+    let result = [0,0];
+    if (noiseScaled < this.size[0])
+      result = [noiseScaled,0];
+    else if (noiseScaled < (this.size[0]+this.size[1]))
+      result = [this.size[0],noiseScaled-this.size[0]];
+    else if (noiseScaled < (2*this.size[0]+this.size[1]))
+      result = [this.size[0]-(noiseScaled-this.size[0]-this.size[1]),this.size[1]];
+    else
+      result = [0,this.size[1]-(noiseScaled-this.size[0]*2-this.size[1])];
+    return [result[0]+this.pos[0]-this.size[0]/2,result[1]+this.pos[1]-this.size[1]/2]
   }
 
   move() {
-    if (mouseX > this.pos[0] && mouseX < (this.pos[0]+this.size[0]) &&
-        mouseY > this.pos[1] && mouseY < (this.pos[1]+this.size[1])) {
+    this.noisenow = noise(this.pos[0],this.pos[1],frameCount/40);
+    this.col = color(this.noisenow*100+155);
+    if (this.mouseHover()) {
         let addX = ((tileSize[0]+focusEnlarge+this.size[0])/2 - this.size[0])*transitionSpeed;
         let addY = ((tileSize[1]+focusEnlarge+this.size[1])/2 - this.size[1])*transitionSpeed;
         this.size = [this.size[0]+addX,this.size[1]+addY];
-        this.pos[0] -= addX/2;
-        this.pos[1] -= addY/2;
+        this.col = color(this.noisenow*100+155,this.noisenow*100+155,100);
     }
     else if (this.size != tileSize) {
       let addX = (tileSize[0] - this.size[0])*transitionSpeed;
       let addY = (tileSize[1] - this.size[1])*transitionSpeed;
       this.size = [this.size[0]+addX,this.size[1]+addY];
-      this.pos[0] -= addX/2;
-      this.pos[1] -= addY/2;
     }
     let distance = ((this.pos[0]+this.size[0]/2-mouseX)^2+(this.pos[1]+this.size[1]/2-mouseY)^2)^0.5;
-    let centered = [this.pos[0]+this.size[0]/2,this.pos[1]+this.size[1]/2];
-    let addX = 0;
-    let addY = 0;
-    if (distance < 200) {
-      addX -= sign(centered[0]-mouseX);
-      addY -= sign(centered[1]-mouseY);
-    }
-    this.col = color(noise(centered[0],centered[1],frameCount/80)*100+155)
   }
 
   display() {
     fill(this.col);
-    rect(this.pos[0], this.pos[1], this.size[0], this.size[1]);
+    stroke(60,60,60,200);
+    strokeWeight(1);
+    rect(this.pos[0]-this.size[0]/2, this.pos[1]-this.size[1]/2, this.size[0], this.size[1]);
+
+    let vert1 = this.noiseToPos(frameCount,false);
+    let vert2 = this.noiseToPos(this.noisenow*2);
+    stroke((this.noisenow*1024)%256,0,(this.noisenow*1024+400)%256);
+    line(vert1[0],vert1[1],vert2[0],vert2[1]);
+    for (let delta = 0; delta < (this.size[0]+this.size[1])*2; delta+=10) {
+      vert1 = this.noiseToPos(frameCount+delta,false);
+      line(vert1[0],vert1[1],vert2[0],vert2[1]);
+    }
   }
 }
