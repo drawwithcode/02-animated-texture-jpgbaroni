@@ -20,10 +20,10 @@ function setup() {
 
   for (var xrel = (tileGap+tileSize[0])/2; xrel < (wDim0[0]*0.5)-tileSize[0]; xrel += tileGap+tileSize[0]) {
     for (var yrel = (tileGap+tileSize[1])/2; yrel < (wDim0[1]*0.5)-tileSize[1]*0.6; yrel += tileGap+tileSize[1]) {
-      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2+yrel));
-      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2-yrel));
-      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2+yrel));
-      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2-yrel));
+      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2+yrel,random(0,1)<0.5));
+      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2-yrel,random(0,1)<0.5));
+      tiles.push(new Tile(wDim0[0]/2-xrel,wDim0[1]/2+yrel,random(0,1)<0.5));
+      tiles.push(new Tile(wDim0[0]/2+xrel,wDim0[1]/2-yrel,random(0,1)<0.5));
     }
   }
 }
@@ -50,13 +50,14 @@ function sign(number) {
 }
 
 class Tile {
-  constructor(x,y) {
+  constructor(x,y,cardcol = true) {
     this.pos = [x,y];
     this.startpos = [x,y];
     this.col = color(250);
     this.size = tileSize;
     this.noisenow = 0;
     this.vert = this.noiseToPos(0);
+    this.cardcolor = cardcol;
   }
 
   mouseHover() {
@@ -85,7 +86,10 @@ class Tile {
 
   move() {
     this.noisenow = noise(this.pos[0],this.pos[1],frameCount/40);
-    this.col = color(this.noisenow*100+155);
+    if (this.cardcolor)
+      this.col = color(this.noisenow*100+155,150,150);
+    else
+      this.col = color(150,150,this.noisenow*100+155);
     if (this.mouseHover()) {
         let addX = ((tileSize[0]+focusEnlarge+this.size[0])/2 - this.size[0])*transitionSpeed;
         let addY = ((tileSize[1]+focusEnlarge+this.size[1])/2 - this.size[1])*transitionSpeed;
@@ -101,6 +105,7 @@ class Tile {
   }
 
   display() {
+    pop();
     fill(this.col);
     stroke(60,60,60,200);
     strokeWeight(1);
@@ -108,11 +113,15 @@ class Tile {
 
     let vert1 = this.noiseToPos(frameCount,false);
     let vert2 = this.noiseToPos(this.noisenow*2);
-    stroke((this.noisenow*1024)%256,0,(this.noisenow*1024+400)%256);
-    line(vert1[0],vert1[1],vert2[0],vert2[1]);
     for (let delta = 0; delta < (this.size[0]+this.size[1])*2; delta+=10) {
       vert1 = this.noiseToPos(frameCount+delta,false);
+      let noisehere = noise(vert1[0],vert1[1],frameCount/100);
+      if (this.cardcolor)
+        stroke(50+(noisehere*1024)%206,noisehere*100,noisehere*100);
+      else
+        stroke(noisehere*100,noisehere*100,50+(noisehere*1024)%206);
       line(vert1[0],vert1[1],vert2[0],vert2[1]);
     }
+    push();
   }
 }
