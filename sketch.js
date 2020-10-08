@@ -28,6 +28,18 @@ function setup() {
   }
 }
 
+function windowResized() {
+  wDim0 = [windowWidth,windowHeight];
+  resizeCanvas(wDim0[0],wDim0[1]);
+}
+
+function mouseClicked() {
+  tiles.forEach((tile) => {
+    if (tile.mouseHover())
+      tile.speedpf = [0,0];
+  });
+}
+
 function draw() {
   // put drawing code here
   background(0, 80, 5);
@@ -36,7 +48,7 @@ function draw() {
   //drawingContext.shadowOffsetY = 0;
   //drawingContext.shadowBlur = 8;
   //drawingContext.shadowColor = 'black';
-
+  //shuffle(tiles);
   tiles.forEach((tile) => {
     tile.move();
     tile.display();
@@ -56,8 +68,9 @@ class Tile {
     this.col = color(250);
     this.size = tileSize;
     this.noisenow = 0;
-    this.vert = this.noiseToPos(0);
+    //this.vert = this.noiseToPos(0);
     this.cardcolor = cardcol;
+    this.speedpf = [random(-5,5),random(-5,5)]; // speed per frame
   }
 
   mouseHover() {
@@ -85,23 +98,33 @@ class Tile {
   }
 
   move() {
+    this.pos[0] = this.pos[0] + this.speedpf[0];
+    this.pos[1] = this.pos[1] + this.speedpf[1];
     this.noisenow = noise(this.pos[0],this.pos[1],frameCount/40);
     if (this.cardcolor)
-      this.col = color(this.noisenow*100+155,150,150);
+      this.col = color(this.noisenow*255+100,60,60);
     else
-      this.col = color(150,150,this.noisenow*100+155);
+      this.col = color(60,60,this.noisenow*255+100);
     if (this.mouseHover()) {
+        this.speedpf[0] *= 1.5;
+        this.speedpf[1] *= 1.5;
         let addX = ((tileSize[0]+focusEnlarge+this.size[0])/2 - this.size[0])*transitionSpeed;
         let addY = ((tileSize[1]+focusEnlarge+this.size[1])/2 - this.size[1])*transitionSpeed;
         this.size = [this.size[0]+addX,this.size[1]+addY];
-        this.col = color(this.noisenow*100+155,this.noisenow*100+155,100);
+        this.col = color(this.noisenow*100+155,this.noisenow*100+155,50);
     }
     else if (this.size != tileSize) {
       let addX = (tileSize[0] - this.size[0])*transitionSpeed;
       let addY = (tileSize[1] - this.size[1])*transitionSpeed;
       this.size = [this.size[0]+addX,this.size[1]+addY];
     }
-    let distance = ((this.pos[0]+this.size[0]/2-mouseX)^2+(this.pos[1]+this.size[1]/2-mouseY)^2)^0.5;
+
+    if ((this.pos[0]-this.size[0]/2) < 0 || (this.pos[0]+this.size[0]/2) > wDim0[0]) {
+      this.speedpf[0] = -this.speedpf[0];
+    }
+    if ((this.pos[1]-this.size[1]/2) < 0 || (this.pos[1]+this.size[1]/2) > wDim0[1]) {
+      this.speedpf[1] = -this.speedpf[1];
+    }
   }
 
   display() {
@@ -110,7 +133,7 @@ class Tile {
     stroke(60,60,60,200);
     strokeWeight(1);
     rect(this.pos[0]-this.size[0]/2, this.pos[1]-this.size[1]/2, this.size[0], this.size[1]);
-
+    /*
     let vert1 = this.noiseToPos(frameCount,false);
     let vert2 = this.noiseToPos(this.noisenow*2);
     for (let delta = 0; delta < (this.size[0]+this.size[1])*2; delta+=10) {
@@ -122,6 +145,7 @@ class Tile {
         stroke(noisehere*100,noisehere*100,50+(noisehere*1024)%206);
       line(vert1[0],vert1[1],vert2[0],vert2[1]);
     }
+    */
     push();
   }
 }
