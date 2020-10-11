@@ -11,6 +11,9 @@ let nbackEl = 20;
 let suits = ["♥","♦","♣","♠"];
 let values = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
 let textTime = 7;
+let elastCoeff = 8;
+let maxspeed = 60;
+let soundtrack;
 
 function preload(){
   // put preload code here
@@ -19,7 +22,9 @@ function preload(){
 function setup() {
   frameRate(fps);
   wDim0 = [windowWidth,windowHeight];
+  tileSize = [(windowWidth+windowHeight)/20,1.4*(windowWidth+windowHeight)/20];
   createCanvas(wDim0[0],wDim0[1]);
+  soundtrack = loadSound('Catch Up - Dan Lebowitz.mp3');
 
   suits.forEach((suit) => {
     values.forEach((value) => {
@@ -54,13 +59,19 @@ function mouseClicked() {
 }
 
 function draw() {
+  /* // Very joky
+  if(frameCount == 5*fps) {
+    soundtrack.play();
+  }
+  */
   // put drawing code here
   background(0, 80, 5);
   push();
+  noStroke();
   translate(wDim0[0]/2,wDim0[1]/2);
   for(let rad = wDim0[0]+wDim0[1]; rad > 0; rad -= (wDim0[0]+wDim0[1])/24) {
-    fill(0,50+50*(1-rad/(wDim0[0]+wDim0[1])),0);
-    ellipse(0,0,rad);
+    fill(0,30+70*(1-rad/(wDim0[0]+wDim0[1])),0);
+    ellipse(0,0,rad*(1+0.1*sin(rad/5+frameCount/50)));
   }
   pop();
   //drawingContext.shadowOffsetX = 0;
@@ -104,6 +115,7 @@ class Tile {
     this.speedpf = [random(-5,5),random(-5,5)]; // speed per frame
     this.csuit = csuit;
     this.cvalue = cvalue;
+    this.initrand = random(1,5);
   }
 
   mouseHover() {
@@ -141,6 +153,23 @@ class Tile {
   move() {
     this.pos[0] = this.pos[0] + this.speedpf[0];
     this.pos[1] = this.pos[1] + this.speedpf[1];
+
+    if(this.turned) {
+      let numhover = 0;
+      tiles.forEach((tile) => {
+        if(this.initrand != tile.initrand) { //notsame
+          if ((abs(tile.pos[0]-this.pos[0]) < this.size[0])&&(abs(tile.pos[1]-this.pos[1]) < this.size[1])) {
+            this.speedpf[0] -= 0.1*(tile.pos[0]-this.pos[0])/abs(tile.pos[0]-this.pos[0])*((-abs(tile.pos[0]-this.pos[0])+this.size[0])/this.size[0]);
+            this.speedpf[1] -= 0.1*(tile.pos[1]-this.pos[1])/abs(tile.pos[1]-this.pos[1])*((-abs(tile.pos[1]-this.pos[1])+this.size[1])/this.size[1]);
+            //this.speedpf[1] -= 0.1*((tile.pos[1]-this.pos[1])/this.size[1]);
+            numhover++;
+          }
+        }
+      });
+      this.speedpf[0] *= 1-0.8*exp(-numhover*2);
+      this.speedpf[1] *= 1-0.8*exp(-numhover*2);
+    }
+
     pop();
     //shadow
     fill(0,0,0,75);
@@ -155,12 +184,18 @@ class Tile {
       this.col = color(60,60,this.noisenow*155+100);
 
     if (this.mouseHover()) {
-        this.speedpf[0] *= 1.5;
-        if (this.speedpf[0]>80)
-          this.speedpf[0] = 80;
-        this.speedpf[1] *= 1.5;
-        if (this.speedpf[1]>80)
-          this.speedpf[1] = 80;
+        if (this.turned) {
+          if (this.speedpf[0] == 0)
+            this.speedpf[0] = rand(-5,5);
+          if (this.speedpf[1] == 0)
+            this.speedpf[1] = rand(-5,5);
+          this.speedpf[0] *= 2;
+          this.speedpf[1] *= 2;
+        }
+        if (abs(this.speedpf[0])>maxspeed)
+          this.speedpf[0] = this.speedpf[0]*maxspeed/abs(this.speedpf[0]);
+        if (abs(this.speedpf[1])>maxspeed)
+          this.speedpf[1] = this.speedpf[1]*maxspeed/abs(this.speedpf[1]);
         let addX = ((tileSize[0]+focusEnlarge+this.size[0])/2 - this.size[0])*transitionSpeed;
         let addY = ((tileSize[1]+focusEnlarge+this.size[1])/2 - this.size[1])*transitionSpeed;
         this.size = [this.size[0]+addX,this.size[1]+addY];
@@ -175,17 +210,23 @@ class Tile {
       this.size = [this.size[0]+addX,this.size[1]+addY];
     }
 
-    if (this.pos[0]-this.size[0]/2 < 0 ) {
-      this.speedpf[0] = abs(this.speedpf[0]);
-    }
-    else if (this.pos[0]+this.size[0]/2 > wDim0[0]) {
-      this.speedpf[0] = -abs(this.speedpf[0]);
-    }
-    if (this.pos[1]-this.size[1]/2 < 0 ) {
-      this.speedpf[1] = abs(this.speedpf[1]);
-    }
-    else if (this.pos[1]+this.size[1]/2 > wDim0[1]) {
-      this.speedpf[1] = -abs(this.speedpf[1]);
+    if (this.turned) {
+      if (this.pos[0]-this.size[0]/2 < 0 ) {
+        //this.speedpf[0] = abs(this.speedpf[0]);
+        this.speedpf[0] += -(this.pos[0]-this.size[0]/2)^2/elastCoeff;
+      }
+      else if (this.pos[0]+this.size[0]/2 > wDim0[0]) {
+        //this.speedpf[0] = -abs(this.speedpf[0]);
+        this.speedpf[0] -= (this.pos[0]+this.size[0]/2 - wDim0[0])^2/elastCoeff;
+      }
+      if (this.pos[1]-this.size[1]/2 < 0 ) {
+        //this.speedpf[1] = abs(this.speedpf[1]);
+        this.speedpf[1] += -(this.pos[1]-this.size[1]/2)^2/elastCoeff;
+      }
+      else if (this.pos[1]+this.size[1]/2 > wDim0[1]) {
+        //this.speedpf[1] = -abs(this.speedpf[1]);
+        this.speedpf[1] -= (this.pos[1]+this.size[1]/2 - wDim0[1])^2/elastCoeff;
+      }
     }
   }
 
@@ -193,17 +234,18 @@ class Tile {
     if(!this.turned) {
       push();
       fill(255);
-      strokeWeight(0);
+      stroke(200)
+      strokeWeight(1);
       rect(this.pos[0]-this.size[0]/2, this.pos[1]-this.size[1]/2, this.size[0], this.size[1]);
 
-      if (this.redcard)
+      if (this.csuit == "♦" || this.csuit == "♥")
         fill(250,0,0);
       else
         fill(0);
       noStroke();
       translate(this.pos[0],this.pos[1]);
-      rotate( sin((frameCount/fps)*(6*PI/textTime))/2 );
-      textSize(28 + 4*cos((frameCount/fps)*(12*PI/textTime)));
+      rotate(sin(this.noisenow*2*PI+(frameCount/fps)*(6*PI/textTime))/2 );
+      textSize(this.size[0]/3 + 4*cos(this.noisenow*2*PI+(frameCount/fps)*(12*PI/textTime)));
       textAlign(CENTER, CENTER);
       text(this.cvalue+this.csuit, 0, 0);
       pop();
@@ -217,13 +259,13 @@ class Tile {
         stroke(30,30,150,230);
       strokeWeight(2);
       rect(this.pos[0]-this.size[0]/2, this.pos[1]-this.size[1]/2, this.size[0], this.size[1]);
-      strokeWeight(2);
+      strokeWeight(3);
 
-      let vert1 = this.noiseToPos(frameCount);
-      let vert2 = this.noiseToPos(frameCount/2);
-      for (let delta = 0; delta < (this.size[0]+this.size[1])*2; delta+=20) {
-        vert1 = this.noiseToPos(frameCount+delta);
-        vert2 = this.noiseToPos(frameCount*2+delta);
+      let vert1 = [0,0];
+      let vert2 = [0,0];
+      for (let delta = 0; delta < (this.size[0]+this.size[1])*2; delta+=24) {
+        vert1 = this.noiseToPos(this.initrand*this.size[0]+this.initrand*frameCount+delta);
+        vert2 = this.noiseToPos((this.initrand*this.size[0]+this.initrand*frameCount)*5+delta);
         if (this.redcard)
           stroke(150,30,30,230);
         else
